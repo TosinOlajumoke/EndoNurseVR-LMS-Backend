@@ -131,19 +131,17 @@ export function buildPasswordResetEmailTemplate(user, newPassword) {
 }
 
 // ===============================
-// SEND EMAIL FUNCTION (SendGrid)
+// SEND EMAIL FUNCTION (AUTO DETECT TYPE)
 // ===============================
-export async function sendAccountEmail(user, type, newPassword = null) {
+export async function sendAccountEmail(user, newPassword = null) {
   try {
-    let html;
+    // Auto-detect email type
+    const type = newPassword ? "reset" : "create";
 
-    if (type === "create") {
-      html = buildAccountCreationEmailTemplate(user);
-    } else if (type === "reset") {
-      html = buildPasswordResetEmailTemplate(user, newPassword);
-    } else {
-      throw new Error("Invalid email type");
-    }
+    const html =
+      type === "create"
+        ? buildAccountCreationEmailTemplate(user)
+        : buildPasswordResetEmailTemplate(user, newPassword);
 
     const msg = {
       to: user.email,
@@ -156,7 +154,7 @@ export async function sendAccountEmail(user, type, newPassword = null) {
     };
 
     await sgMail.send(msg);
-    console.log(`✅ Email sent to ${user.email}`);
+    console.log(`✅ ${type === "create" ? "Account" : "Password reset"} email sent to ${user.email}`);
     return { success: true };
   } catch (error) {
     console.error("❌ Email send failed:", error.response?.body || error.message);
