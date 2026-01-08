@@ -1,33 +1,13 @@
 // utils/mailer.js
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 import dotenv from "dotenv";
 
-dotenv.config(); // Load environment variables
+dotenv.config();
 
 // ===============================
-// SMTP TRANSPORTER (GMAIL / RENDER SAFE)
+// SENDGRID SETUP
 // ===============================
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: Number(process.env.EMAIL_PORT) || 587, // STARTTLS
-  secure: false, // MUST be false for port 587
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // Gmail App Password
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
-
-// Verify SMTP connection (runs once on boot)
-transporter.verify((error) => {
-  if (error) {
-    console.error("❌ SMTP connection failed:", error);
-  } else {
-    console.log("✅ SMTP server is ready to send emails");
-  }
-});
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // ===============================
 // ACCOUNT CREATION EMAIL TEMPLATE
@@ -151,7 +131,7 @@ export function buildPasswordResetEmailTemplate(user, newPassword) {
 }
 
 // ===============================
-// SEND EMAIL FUNCTION
+// SEND EMAIL FUNCTION (SendGrid)
 // ===============================
 export async function sendAccountEmail(user, type, newPassword = null) {
   try {
@@ -165,9 +145,9 @@ export async function sendAccountEmail(user, type, newPassword = null) {
       throw new Error("Invalid email type");
     }
 
-    const mailOptions = {
-      from: process.env.EMAIL_FROM || `EndoNurseVR LMS <${process.env.EMAIL_USER}>`,
+    const msg = {
       to: user.email,
+      from: process.env.EMAIL_FROM, // Verified SendGrid sender
       subject:
         type === "create"
           ? "Your EndoNurseVR LMS Account Details"
@@ -175,12 +155,11 @@ export async function sendAccountEmail(user, type, newPassword = null) {
       html,
     };
 
-    const info = await transporter.sendMail(mailOptions);
-
-    console.log("✅ Email sent:", info.messageId);
+    await sgMail.send(msg);
+    console.log(`✅ Email sent to ${user.email}`);
     return { success: true };
   } catch (error) {
-    console.error("❌ Email send failed:", error);
+    console.error("❌ Email send failed:", error.response?.body || error.message);
     return { success: false, error: error.message };
   }
-}
+};
